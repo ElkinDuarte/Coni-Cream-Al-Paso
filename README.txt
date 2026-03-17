@@ -5,8 +5,5 @@ Integrantes
 Efren Dayef Vasquez Rondon - Lider
 Elkin Asdrubal Duarte Fonseca - Administrador
 
-Tecnologias
-Frontend
-Flutter
-Backend
-Base de Datos
+Objetivo General
+Desarrollar una aplicación móvil multiplataforma para la digitalización, automatización y gestión de pedidos, inventario y liquidaciones de la heladería Coni Cream reemplazando el registro manual en papel y reduciendo el tiempo operativo en cada jornada. 
