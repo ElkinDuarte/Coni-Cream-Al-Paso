@@ -140,7 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     // ValueListenableBuilder → solo reconstruye este TextField
                     ValueListenableBuilder<bool>(
                       valueListenable: _passwordVisible,
-                      builder: (_, visible, __) {
+                      builder: (_, visible, _) {
                         return TextField(
                           controller: _passwordController,
                           obscureText: !visible,
@@ -232,11 +232,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           onTap: () => Navigator.of(context).push(
                             // Transición de 180ms en lugar de 300ms por defecto
                             PageRouteBuilder(
-                              pageBuilder: (_, __, ___) =>
+                              pageBuilder: (_, _, _) =>
                                   const RegisterScreen(),
                               transitionDuration:
                                   const Duration(milliseconds: 180),
-                              transitionsBuilder: (_, anim, __, child) =>
+                              transitionsBuilder: (_, anim, _, child) =>
                                   FadeTransition(
                                       opacity: anim, child: child),
                             ),

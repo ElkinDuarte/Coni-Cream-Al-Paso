@@ -140,7 +140,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         const SizedBox(height: 6),
         ValueListenableBuilder<bool>(
           valueListenable: visibleNotifier,
-          builder: (_, visible, __) {
+          builder: (_, visible, _) {
             return TextField(
               controller: controller,
               obscureText: !visible,

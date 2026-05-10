@@ -1,30 +1,39 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// Widget tests para la pantalla de Login de Coni-Cream Al Paso.
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:coni_cream_al_paso/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+  testWidgets('La pantalla de login se renderiza correctamente', (
+    WidgetTester tester,
+  ) async {
+    // Construye la app y genera el primer frame.
+    await tester.pumpWidget(const AlPasoApp());
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Verifica que los elementos clave del login están presentes.
+    expect(find.text('AlPaso'), findsOneWidget);
+    expect(find.text('Numero Documento'), findsOneWidget);
+    expect(find.text('Contraseña'), findsOneWidget);
+    expect(find.text('Ingresar'), findsOneWidget);
+    expect(find.text('Registrarse'), findsOneWidget);
+  });
+
+  testWidgets('Muestra error al intentar ingresar con campos vacíos', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const AlPasoApp());
+    await tester.pump();
+
+    // Toca el botón "Ingresar" sin llenar campos.
+    await tester.tap(find.text('Ingresar'));
+    await tester.pump();
+
+    // Verifica que aparece el mensaje de error.
+    expect(
+      find.text('Por favor ingresa tu documento y contraseña'),
+      findsOneWidget,
+    );
   });
 }
