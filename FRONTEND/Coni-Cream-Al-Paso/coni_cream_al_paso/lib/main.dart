@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/register_screen.dart';
+import 'services/auth_service.dart';
 
 void main() {
   runApp(const AlPasoApp());
@@ -35,6 +36,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // ValueNotifier: solo reconstruye el IconButton, no toda la pantalla
   final _passwordVisible = ValueNotifier<bool>(false);
+
+  // Estado de carga para deshabilitar el botón durante la petición
+  bool _isLoading = false;
 
   static const Color _pink = Color(0xFFE91E8C);
 
@@ -77,7 +81,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Image.asset(
                           'assets/images/logo.png',
                           fit: BoxFit.contain,
-                          // Cachea la imagen al tamaño de render → menos trabajo GPU
                           cacheWidth: 380,
                           cacheHeight: 380,
                         ),
@@ -137,7 +140,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    // ValueListenableBuilder → solo reconstruye este TextField
                     ValueListenableBuilder<bool>(
                       valueListenable: _passwordVisible,
                       builder: (_, visible, _) {
@@ -203,20 +205,31 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: double.infinity,
                       height: 54,
                       child: ElevatedButton(
-                        onPressed: _handleLogin,
+                        onPressed: _isLoading ? null : _handleLogin,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _pink,
                           foregroundColor: Colors.white,
+                          disabledBackgroundColor: _pink.withAlpha(153),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                           elevation: 0,
                         ),
-                        child: const Text(
-                          'Ingresar',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.w600),
-                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.5,
+                                ),
+                              )
+                            : const Text(
+                                'Ingresar',
+                                style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -230,7 +243,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         GestureDetector(
                           onTap: () => Navigator.of(context).push(
-                            // Transición de 180ms en lugar de 300ms por defecto
                             PageRouteBuilder(
                               pageBuilder: (_, _, _) =>
                                   const RegisterScreen(),
@@ -269,24 +281,49 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _handleLogin() {
+  Future<void> _handleLogin() async {
     final doc = _documentController.text.trim();
     final pass = _passwordController.text.trim();
 
+    // ── Validación local (sin tocar la red) ──
     if (doc.isEmpty || pass.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor ingresa tu documento y contraseña'),
-          backgroundColor: _pink,
-        ),
-      );
+      _showSnack('Por favor ingresa tu documento y contraseña');
       return;
     }
 
+    // ── Mostrar spinner ──
+    setState(() => _isLoading = true);
+
+    // ── Llamada al backend ──
+    final result = await AuthService.login(
+      numeroDocumento: doc,
+      clave: pass,
+    );
+
+    // ── Ocultar spinner ──
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (result.ok) {
+      _showSnack('¡Bienvenido, ${result.data!.nombre}! 🎉');
+
+      // TODO: navegar a HomeScreen cuando esté lista
+      // Navigator.of(context).pushReplacement(
+      //   MaterialPageRoute(builder: (_) => HomeScreen(usuario: result.data!)),
+      // );
+    } else {
+      _showSnack(result.mensaje);
+    }
+  }
+
+  void _showSnack(String mensaje) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Bienvenido $doc'),
+        content: Text(mensaje),
         backgroundColor: _pink,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
       ),
     );
   }

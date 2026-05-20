@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -10,7 +11,7 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _documentController = TextEditingController();
   final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
@@ -18,13 +19,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordVisible = ValueNotifier<bool>(false);
   final _confirmPasswordVisible = ValueNotifier<bool>(false);
 
+  bool _isLoading = false;
+
   static const Color _pink = Color(0xFFE91E8C);
 
   @override
   void dispose() {
     _documentController.dispose();
     _nameController.dispose();
-    _phoneController.dispose();
+    _lastNameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _passwordVisible.dispose();
@@ -32,66 +35,86 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  void _handleRegister() {
+  Future<void> _handleRegister() async {
     final doc = _documentController.text.trim();
     final name = _nameController.text.trim();
-    final phone = _phoneController.text.trim();
+    final lastName = _lastNameController.text.trim();
     final pass = _passwordController.text.trim();
     final confirm = _confirmPasswordController.text.trim();
 
-    if (doc.isEmpty ||
-        name.isEmpty ||
-        phone.isEmpty ||
-        pass.isEmpty ||
-        confirm.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor completa todos los campos'),
-          backgroundColor: _pink,
-        ),
-      );
+    // ── Validaciones locales ──
+    if (doc.isEmpty || name.isEmpty || pass.isEmpty || confirm.isEmpty) {
+      _showSnack('Por favor completa los campos obligatorios');
+      return;
+    }
+
+    if (doc.length > 11) {
+      _showSnack('El documento no puede superar 11 dígitos');
+      return;
+    }
+
+    if (pass.length < 6) {
+      _showSnack('La contraseña debe tener al menos 6 caracteres');
       return;
     }
 
     if (pass != confirm) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Las contraseñas no coinciden'),
-          backgroundColor: _pink,
-        ),
-      );
+      _showSnack('Las contraseñas no coinciden');
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('¡Registro exitoso! Bienvenido $name'),
-        backgroundColor: _pink,
-      ),
+    // ── Mostrar spinner ──
+    setState(() => _isLoading = true);
+
+    // ── Llamada al backend ──
+    final result = await AuthService.register(
+      numeroDocumento: doc,
+      nombre: name,
+      primerApellido: lastName.isEmpty ? null : lastName,
+      clave: pass,
     );
 
-    Navigator.of(context).pop();
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (result.ok) {
+      _showSnack('¡Registro exitoso! Bienvenido $name 🎉');
+      await Future.delayed(const Duration(seconds: 1));
+      if (mounted) Navigator.of(context).pop();
+    } else {
+      _showSnack(result.mensaje);
+    }
   }
 
-  // Campo simple sin visibilidad (no necesita ValueNotifier)
+  // Campo simple sin visibilidad
   Widget _buildSimpleField({
     required String label,
     required TextEditingController controller,
     TextInputType keyboardType = TextInputType.text,
     String hintText = '',
     String? prefixText,
+    bool required = true,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
-          ),
+        Row(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+            if (!required)
+              const Text(
+                ' (opcional)',
+                style: TextStyle(fontSize: 12, color: Colors.black38),
+              ),
+          ],
         ),
         const SizedBox(height: 6),
         TextField(
@@ -119,7 +142,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // Campo de contraseña: ValueListenableBuilder → solo este widget se reconstruye
+  // Campo de contraseña con toggle visibilidad
   Widget _buildPasswordField({
     required String label,
     required TextEditingController controller,
@@ -232,7 +255,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ],
                 ),
 
-                // ── MIDDLE: 5 campos ──
+                // ── MIDDLE: Campos ──
                 Column(
                   children: [
                     _buildSimpleField(
@@ -243,18 +266,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 16),
                     _buildSimpleField(
-                      label: 'Nombre Usuario',
+                      label: 'Nombre',
                       controller: _nameController,
                       keyboardType: TextInputType.name,
-                      hintText: 'Juan Perez',
+                      hintText: 'Juan',
                     ),
                     const SizedBox(height: 16),
                     _buildSimpleField(
-                      label: 'Telefono',
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      hintText: '999 9999999',
-                      prefixText: '+57   ',
+                      label: 'Primer Apellido',
+                      controller: _lastNameController,
+                      keyboardType: TextInputType.name,
+                      hintText: 'Pérez',
+                      required: false,
                     ),
                     const SizedBox(height: 16),
                     _buildPasswordField(
@@ -278,22 +301,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       width: double.infinity,
                       height: 54,
                       child: ElevatedButton(
-                        onPressed: _handleRegister,
+                        onPressed: _isLoading ? null : _handleRegister,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _pink,
                           foregroundColor: Colors.white,
+                          disabledBackgroundColor: _pink.withAlpha(153),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                           elevation: 0,
                         ),
-                        child: const Text(
-                          'Registrar',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.5,
+                                ),
+                              )
+                            : const Text(
+                                'Registrar',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -325,6 +358,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showSnack(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensaje),
+        backgroundColor: _pink,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
       ),
     );
   }
